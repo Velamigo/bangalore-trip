@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>班加罗尔商务出差之旅 · 2026.08.20-23</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --ink:#1e293b; --muted:#64748b;
+    --accent:#e07a2c; --accent2:#2c8ee0; --accent3:#2ca67a;
+    --line:#e5e9f0; --soft:#f7f9fc; --navy:#0f172a;
+    --topH:60px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{ height:100%; margin:0; }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--soft); display:flex; flex-direction:column;
+    overscroll-behavior-y:none;
+  }
+  img{ max-width:100%; }
+
+  /* ---------------- top bar ---------------- */
+  .topbar{
+    background:linear-gradient(120deg,var(--navy),#1e2a44 70%);
+    color:#fff; padding:12px 20px; padding-top:calc(12px + env(safe-area-inset-top));
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    position:relative; z-index:1200;
+  }
+  .topbar h1{ font-size:1.15rem; margin:0; letter-spacing:.2px; line-height:1.3;}
+  .topbar .sub{ font-size:.74rem; color:#94a3b8; display:block; margin-top:2px;}
+  .topbar .right{ display:flex; gap:7px; align-items:center; flex-wrap:wrap;}
+  .badge{ background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22);
+    padding:4px 11px; border-radius:999px; font-size:.72rem; color:#e2e8f0; white-space:nowrap;}
+  .lang-toggle{ display:flex; background:rgba(255,255,255,.12); border-radius:999px; padding:3px;
+    border:1px solid rgba(255,255,255,.25); }
+  .lang-toggle button{ border:none; background:transparent; color:#cbd5e1; font-size:.74rem;
+    font-weight:600; padding:5px 13px; border-radius:999px; cursor:pointer; transition:.15s; }
+  .lang-toggle button.on{ background:#fff; color:var(--navy); }
+
+  /* ---------------- layout ---------------- */
+  .layout{ flex:1; display:flex; min-height:0; }
+  .map-pane{ width:44%; min-width:340px; position:relative; background:#fff; border-right:1px solid var(--line); }
+  #map{ width:100%; height:100%; }
+  .legend{
+    position:absolute; left:12px; bottom:12px; z-index:500; background:rgba(255,255,255,.96);
+    border-radius:10px; padding:8px 12px; box-shadow:0 6px 20px rgba(15,23,42,.15);
+    font-size:.73rem; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; max-width:calc(100% - 24px);
+  }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; white-space:nowrap;}
+  .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex-shrink:0;}
+
+  .home-btn{
+    display:flex !important; align-items:center; justify-content:center;
+    width:34px; height:34px; font-size:19px; line-height:1; font-weight:700;
+    background:#fff; color:var(--navy); text-decoration:none;
+  }
+  .home-btn:hover{ background:#f1f5f9; }
+
+  .content-pane{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 22px 60px; }
+
+  .day-nav{ display:flex; gap:7px; margin-bottom:18px; position:sticky; top:0; z-index:20;
+    background:var(--soft); padding:14px 0 10px; overflow-x:auto; scrollbar-width:none; }
+  .day-nav::-webkit-scrollbar{ display:none; }
+  .day-nav button{
+    flex:1 0 auto; min-width:120px; padding:9px 13px; border-radius:11px; border:1px solid var(--line);
+    background:#fff; cursor:pointer; font-size:.82rem; color:var(--ink); font-weight:600;
+    box-shadow:0 1px 4px rgba(15,23,42,.05); transition:.15s; text-align:left; white-space:nowrap;
+  }
+  .day-nav button.active{ background:linear-gradient(135deg,var(--accent),#f0a75c); color:#fff; border-color:transparent;}
+  .day-nav button small{ display:block; font-weight:400; opacity:.85; margin-top:2px; font-size:.7rem;}
+
+  .day-panel{ display:none; }
+  .day-panel.active{ display:block; animation:fade .28s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .day-header{ display:flex; align-items:baseline; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+  .day-header h2{ margin:0; font-size:1.2rem;}
+  .day-header .tag{ background:#fff; border:1px solid var(--line); color:var(--muted);
+    padding:3px 10px; border-radius:8px; font-size:.74rem;}
+
+  /* ---------------- stop card ---------------- */
+  .stop{ margin-bottom:15px; }
+  .stop-card{
+    background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    box-shadow:0 3px 12px rgba(15,23,42,.05); display:flex; cursor:pointer; transition:.15s;
+  }
+  .stop-card:hover{ box-shadow:0 8px 22px rgba(15,23,42,.13); }
+  .stop-card.active{ outline:2px solid var(--accent2); outline-offset:-1px; }
+  .thumb{
+    width:150px; min-width:150px; position:relative; overflow:hidden;
+    background:linear-gradient(140deg,#334155,#0f172a);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .ph{ color:#94a3b8; font-size:1.7rem; }
+  .thumb .cap{
+    position:absolute; left:0; right:0; bottom:0;
+    background:linear-gradient(transparent,rgba(0,0,0,.75));
+    color:#fff; font-size:.6rem; padding:12px 7px 5px; line-height:1.3;
+  }
+  .stop-body{ padding:12px 15px; flex:1; min-width:0; }
+  .stop-time{ font-weight:700; color:var(--accent2); font-size:.83rem; display:flex; align-items:center;}
+  .stop.leisure .stop-time{ color:var(--accent3); }
+  .stop-route{ font-size:.98rem; font-weight:700; margin:3px 0 5px; line-height:1.4; }
+  .stop-purpose{ font-size:.85rem; margin-bottom:6px; line-height:1.5;}
+  .stop-remarks{ background:var(--soft); border-radius:8px; padding:8px 10px; font-size:.78rem;
+    color:#334155; white-space:pre-line; line-height:1.55; }
+  .meta-row{ display:flex; gap:7px; flex-wrap:wrap; margin-top:6px; }
+  .chip{ font-size:.7rem; background:#ecfdf5; color:#047857; padding:2px 8px; border-radius:999px; }
+  .num-badge{
+    display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px;
+    border-radius:50%; background:var(--accent2); color:#fff; font-size:.67rem; font-weight:700;
+    margin-right:6px; flex-shrink:0;
+  }
+  .stop.leisure .num-badge{ background:var(--accent3); }
+
+  .notes{ background:#fff7ed; border:1px solid #fed7aa; border-radius:14px; padding:14px 16px;
+    font-size:.82rem; color:#7c2d12; white-space:pre-line; line-height:1.65;}
+  .notes h3{ margin:0 0 6px; font-size:.92rem; }
+  footer{ text-align:center; color:var(--muted); font-size:.72rem; padding:18px 0 4px; line-height:1.6;}
+
+  /* ---------------- mobile ---------------- */
+  .mobile-switch{ display:none; }
+
+  @media (max-width: 900px){
+    .topbar{ padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top)); }
+    .topbar h1{ font-size:1rem; }
+    .topbar .badge{ display:none; }
+
+    .mobile-switch{
+      display:flex; gap:6px; background:#fff; border-bottom:1px solid var(--line);
+      padding:8px 14px; position:sticky; top:0; z-index:1100;
+    }
+    .mobile-switch button{
+      flex:1; padding:9px; border-radius:10px; border:1px solid var(--line); background:var(--soft);
+      font-size:.85rem; font-weight:600; color:var(--muted); cursor:pointer;
+    }
+    .mobile-switch button.on{ background:var(--navy); color:#fff; border-color:var(--navy); }
+
+    .layout{ flex-direction:column; position:relative; }
+    .map-pane{
+      width:100%; min-width:0; border-right:none;
+      height:calc(100dvh - var(--topH) - 51px);
+    }
+    .content-pane{ padding:0 14px 40px; height:calc(100dvh - var(--topH) - 51px); }
+
+    body.view-list .map-pane{ display:none; }
+    body.view-map .content-pane{ display:none; }
+
+    .day-nav{ padding:12px 0 9px; }
+    .day-nav button{ min-width:112px; font-size:.78rem; padding:8px 11px; }
+    .thumb{ width:104px; min-width:104px; }
+    .stop-body{ padding:11px 12px; }
+    .stop-route{ font-size:.92rem; }
+    .legend{ font-size:.68rem; padding:7px 10px; }
+  }
+
+  @media (max-width: 420px){
+    .stop-card{ flex-direction:column; }
+    .thumb{ width:100%; min-width:0; height:150px; }
+    .stop-route{ font-size:.95rem; }
+  }
+</style>
+</head>
+<body class="view-list">
+
+<div class="topbar">
+  <div>
+    <h1 data-zh="🇮🇳 班加罗尔商务出差之旅" data-en="🇮🇳 Bengaluru Business Trip">🇮🇳 班加罗尔商务出差之旅</h1>
+    <span class="sub" data-zh="2026.08.20–23 · 住宿 ITC Windsor" data-en="20–23 Aug 2026 · Stay at ITC Windsor">2026.08.20–23 · 住宿 ITC Windsor</span>
+  </div>
+  <div class="right">
+    <span class="badge">📅 2026.08.20–23</span>
+    <span class="badge">🏨 ITC Windsor</span>
+    <div class="lang-toggle">
+      <button id="btn-zh" class="on">中文</button>
+      <button id="btn-en">EN</button>
+    </div>
+  </div>
+</div>
+
+<div class="mobile-switch">
+  <button id="tab-list" class="on" data-zh="📋 行程" data-en="📋 Itinerary">📋 行程</button>
+  <button id="tab-map" data-zh="🗺️ 地图" data-en="🗺️ Map">🗺️ 地图</button>
+</div>
+
+<div class="layout">
+  <div class="map-pane">
+    <div id="map"></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#e07a2c"></i><b data-zh="酒店" data-en="Hotel">酒店</b></span>
+      <span><i class="dot" style="background:#2c8ee0"></i><b data-zh="商务拜访" data-en="Business">商务拜访</b></span>
+      <span><i class="dot" style="background:#2ca67a"></i><b data-zh="观光 / 休闲" data-en="Sightseeing">观光 / 休闲</b></span>
+    </div>
+  </div>
+
+  <div class="content-pane" id="content">
+    <div class="day-nav">
+      <button class="active" data-day="1"><span data-zh="DAY 1 · 8月20日" data-en="DAY 1 · Aug 20">DAY 1 · 8月20日</span><small data-zh="客户现场拜访" data-en="Customer site visits">客户现场拜访</small></button>
+      <button data-day="2"><span data-zh="DAY 2 · 8月21日" data-en="DAY 2 · Aug 21">DAY 2 · 8月21日</span><small data-zh="TEHR 计划（待定）" data-en="TEHR plan (TBD)">TEHR 计划（待定）</small></button>
+      <button data-day="3"><span data-zh="DAY 3 · 8月22日" data-en="DAY 3 · Aug 22">DAY 3 · 8月22日</span><small data-zh="周末观光" data-en="Weekend sightseeing">周末观光</small></button>
+      <button data-day="4"><span data-zh="DAY 4 · 8月23日" data-en="DAY 4 · Aug 23">DAY 4 · 8月23日</span><small data-zh="市区文化行" data-en="City culture day">市区文化行</small></button>
+    </div>
+
+    <div class="day-panel active" id="day1">
+      <div class="day-header">
+        <h2 data-zh="Day 1 · 客户现场拜访" data-en="Day 1 · Customer Site Visits">Day 1 · 客户现场拜访</h2>
+        <span class="tag" data-zh="2026-08-20（周四）" data-en="Thu, 20 Aug 2026">2026-08-20（周四）</span>
+      </div>
+      <div id="list-1"></div>
+    </div>
+    <div class="day-panel" id="day2">
+      <div class="day-header">
+        <h2 data-zh="Day 2 · TEHR 计划" data-en="Day 2 · TEHR Plan">Day 2 · TEHR 计划</h2>
+        <span class="tag" data-zh="2026-08-21（周五）" data-en="Fri, 21 Aug 2026">2026-08-21（周五）</span>
+      </div>
+      <div id="list-2"></div>
+    </div>
+    <div class="day-panel" id="day3">
+      <div class="day-header">
+        <h2 data-zh="Day 3 · 周末观光日" data-en="Day 3 · Weekend Sightseeing">Day 3 · 周末观光日</h2>
+        <span class="tag" data-zh="2026-08-22（周六）" data-en="Sat, 22 Aug 2026">2026-08-22（周六）</span>
+      </div>
+      <div id="list-3"></div>
+    </div>
+    <div class="day-panel" id="day4">
+      <div class="day-header">
+        <h2 data-zh="Day 4 · 市区文化行" data-en="Day 4 · City Culture Day">Day 4 · 市区文化行</h2>
+        <span class="tag" data-zh="2026-08-23（周日）" data-en="Sun, 23 Aug 2026">2026-08-23（周日）</span>
+      </div>
+      <div id="list-4"></div>
+    </div>
+
+    <div class="notes">
+      <h3 data-zh="🚕 用车安排备注" data-en="🚕 Taxi Booking Notes">🚕 用车安排备注</h3>
+      <div data-zh="周六、周日已预订出租车：
+周六（8/22）：SUV — 6,000 卢比/全天；轿车 — 5,000 卢比/全天
+周日（8/23）：SUV — 6,000 卢比/全天；轿车 — 3,500 卢比/8 小时" data-en="Taxi booked for Saturday and Sunday:
+Sat (22 Aug): SUV — ₹6,000/full day; Sedan — ₹5,000/full day
+Sun (23 Aug): SUV — ₹6,000/full day; Sedan — ₹3,500/8 hrs">周六、周日已预订出租车：
+周六（8/22）：SUV — 6,000 卢比/全天；轿车 — 5,000 卢比/全天
+周日（8/23）：SUV — 6,000 卢比/全天；轿车 — 3,500 卢比/8 小时</div>
+    </div>
+
+    <footer data-zh="整理自出差行程原始表格 · 图片请放入 img/ 目录（见 README）· 地图坐标为大致位置" data-en="Compiled from the original business-trip sheet · Place photos in the img/ folder (see README) · Map coordinates are approximate">整理自出差行程原始表格 · 图片请放入 img/ 目录（见 README）· 地图坐标为大致位置</footer>
+  </div>
+</div>
+
+<script>
+/* =======================================================================
+   行程数据 —— 想改内容/换图，只改这里就行
+   img: 对应 img/ 目录下的文件名（放进去自动显示，没有则显示占位图标）
+   ======================================================================= */
+const DATA = [
+  { day:1, n:1, time:"9:00 AM", type:"biz", img:"itc-windsor.jpg", icon:"🏨",
+    coord:[12.9878,77.5722],
+    route:{zh:"ITC Windsor 酒店 → HHBL", en:"ITC Windsor Hotel → HHBL"},
+    cap:{zh:"ITC Windsor 酒店", en:"ITC Windsor Hotel"},
+    purpose:{zh:"拜访 CM（合同制造商）现场", en:"Visit CM (contract manufacturer) site"},
+    chip:{zh:"🚗 约 43 公里 · 约 2 小时", en:"🚗 ~43 km · ~2 hrs"},
+    remarks:{zh:"• 9:00 AM 从酒店出发\n• 预计 11:00 AM 到达 HHBL\n• 与 HHBL SQE（供应商质量工程）团队会议",
+             en:"• 9:00 AM departure from hotel\n• Reach HHBL by 11:00 AM\n• Meeting with HHBL SQE team"} },
+
+  { day:1, n:2, time:"1:00 PM", type:"biz", img:"hhbl.jpg", icon:"🏭",
+    coord:[13.05,77.02],
+    route:{zh:"HHBL → TESS", en:"HHBL → TESS"},
+    cap:{zh:"HHBL 现场", en:"HHBL site"},
+    purpose:{zh:"拜访 CM 现场（含午餐）", en:"Visit CM site (including lunch)"},
+    chip:{zh:"🚗 约 63 公里 · 约 2.5 小时（含午餐）", en:"🚗 ~63 km · ~2.5 hrs (incl. lunch)"},
+    remarks:{zh:"• 1:00 PM 从 HHBL 出发\n• 预计 3:30 PM 到达 TESS\n• 与 SQE 团队会议",
+             en:"• 1:00 PM departure from HHBL\n• Reach TESS by 3:30 PM\n• Meeting with SQE team"} },
+
+  { day:1, n:3, time:"5:00 PM", type:"biz", img:"tess.jpg", icon:"🌆",
+    coord:[12.9878,77.5722],
+    route:{zh:"TESS → 酒店", en:"TESS → Hotel"},
+    cap:{zh:"TESS 现场 / 返程", en:"TESS site / return"},
+    purpose:{zh:"返回酒店休息", en:"Return to hotel / stay"},
+    chip:{zh:"🚗 约 60 公里 · 约 2–2.5 小时", en:"🚗 ~60 km · ~2–2.5 hrs"},
+    remarks:{zh:"• 预计 7:30 PM 抵达酒店", en:"• Reach hotel by 7:30 PM"} },
+
+  { day:2, n:null, time:{zh:"📌 待定", en:"📌 To be confirmed"}, type:"leisure", img:"tehr.jpg", icon:"🤝",
+    coord:null,
+    route:{zh:"TEHR 计划（可选：外部会面 / 办公室会议）", en:"TEHR Plan (optional: outside meet / office meet)"},
+    cap:{zh:"会议安排", en:"Meeting"},
+    purpose:{zh:"具体安排取决于客户 CM 的时间安排", en:"Based on CM availability"},
+    chip:null,
+    remarks:{zh:"此日行程灵活预留，视对方（CM）当天是否有空而定，可能为办公室内部会议或线下会面。建议出发前一天与对方确认最终安排。",
+             en:"Kept flexible depending on the CM's availability — either an office meeting or an outside meet. Confirm the final arrangement the day before."} },
+
+  { day:3, n:4, time:"5:30 AM", type:"leisure", img:"nandi-hills.jpg", icon:"⛰️",
+    coord:[13.3702,77.6835],
+    route:{zh:"酒店 → 南迪山 Nandi Hills", en:"Hotel → Nandi Hills"},
+    cap:{zh:"南迪山 Nandi Hills", en:"Nandi Hills"},
+    purpose:{zh:"自然风光 · 山景（著名日出观景地）", en:"Nature & hills (famous sunrise viewpoint)"},
+    chip:{zh:"🚗 约 56 公里 · 约 1.5 小时", en:"🚗 ~56 km · ~1.5 hrs"},
+    remarks:{zh:"• 预计 6:30 AM 到达南迪山\n• 9:00 AM 返程", en:"• Reach Nandi Hills by 6:30 AM\n• Return at 9:00 AM"} },
+
+  { day:3, n:5, time:"9:00 AM", type:"leisure", img:"isha-adiyogi.jpg", icon:"🕉️",
+    coord:[13.3450,77.7200],
+    route:{zh:"南迪山 → Isha Foundation（Sadhguru Sannidhi）", en:"Nandi Hills → Isha Foundation (Sadhguru Sannidhi)"},
+    cap:{zh:"Sadhguru Sannidhi · Adiyogi 神像", en:"Sadhguru Sannidhi · Adiyogi statue"},
+    purpose:{zh:"著名湿婆神巨型雕像「Adiyogi」· 途中安排印度早餐", en:"Famous giant Shiva statue “Adiyogi” · Indian breakfast on the way"},
+    chip:{zh:"🚗 约 37 公里 · 约 45 分钟", en:"🚗 ~37 km · ~45 min"},
+    remarks:{zh:"• 10:30 AM 到达 Isha Foundation（含早餐）\n• 11:30 AM 返程\n\n📍 地址：Sadhguru Sannidhi, Kavaranahalli, 近南迪山, Chikkaballapura 县, 卡纳塔克邦（班加罗尔以北约 65 公里）\n☎ 080-47103311",
+             en:"• Reach Isha Foundation by 10:30 AM (incl. breakfast)\n• Return at 11:30 AM\n\n📍 Address: Sadhguru Sannidhi, Kavaranahalli, near Nandi Hills, Chikkaballapura District, Karnataka (≈65 km north of Bengaluru)\n☎ 080-47103311"} },
+
+  { day:3, n:6, time:"11:30 AM", type:"leisure", img:"mall-of-asia.jpg", icon:"🛍️",
+    coord:[13.0570,77.6362],
+    route:{zh:"Isha Foundation → Mall of Asia", en:"Isha Foundation → Mall of Asia"},
+    cap:{zh:"Phoenix Mall of Asia", en:"Phoenix Mall of Asia"},
+    purpose:{zh:"知名购物中心（Phoenix Mall of Asia）", en:"Famous shopping mall (Phoenix Mall of Asia)"},
+    chip:{zh:"🚗 约 60 公里 · 约 1.5 小时", en:"🚗 ~60 km · ~1.5 hrs"},
+    remarks:{zh:"• 1:00 PM 到达商场，商场内午餐（现场选择餐厅）\n• 3:00 PM 返程",
+             en:"• Reach mall by 1:00 PM, lunch at the mall\n• Return at 3:00 PM"} },
+
+  { day:3, n:7, time:"6:00 PM", type:"leisure", img:"memories-of-china.jpg", icon:"🥢",
+    coord:[12.9950,77.6100],
+    route:{zh:"酒店 → Memories of China", en:"Hotel → Memories of China"},
+    cap:{zh:"Memories of China 中餐厅", en:"Memories of China restaurant"},
+    purpose:{zh:"中餐厅晚宴", en:"Chinese restaurant for dinner"},
+    chip:{zh:"🚗 约 6 公里 · 约 40 分钟", en:"🚗 ~6 km · ~40 min"},
+    remarks:{zh:"• 6:45 PM 预计到达餐厅", en:"• Reach restaurant by 6:45 PM"} },
+
+  { day:3, n:8, time:"7:00 – 11:00 PM", type:"leisure", img:"mg-road.jpg", icon:"🌃",
+    coord:[12.9757,77.6070],
+    route:{zh:"MG Road", en:"MG Road"},
+    cap:{zh:"MG Road", en:"MG Road"},
+    purpose:{zh:"购物 / 酒吧夜生活", en:"Shopping / pubs & nightlife"},
+    chip:null,
+    remarks:{zh:"晚间自由活动，逛街购物或小酌", en:"Free evening — shopping or a drink"} },
+
+  { day:4, n:9, time:"9:00 AM", type:"leisure", img:"iskcon-temple.jpg", icon:"🛕",
+    coord:[12.9718,77.5510],
+    route:{zh:"酒店 → ISKCON 神庙", en:"Hotel → ISKCON Temple"},
+    cap:{zh:"ISKCON 神庙", en:"ISKCON Temple"},
+    purpose:{zh:"著名印度教寺庙", en:"Famous Hindu temple"},
+    chip:{zh:"🚗 约 8 公里 · 约 30 分钟", en:"🚗 ~8 km · ~30 min"},
+    remarks:{zh:"• 酒店内早餐\n• 9:30 AM 到达 ISKCON 神庙\n• 10:30 AM 返程",
+             en:"• Breakfast at hotel\n• Reach ISKCON Temple by 9:30 AM\n• Return at 10:30 AM"} },
+
+  { day:4, n:10, time:"10:30 AM", type:"leisure", img:"chikpet.jpg", icon:"🏮",
+    coord:[12.9666,77.5771],
+    route:{zh:"ISKCON 神庙 → Chikpet", en:"ISKCON Temple → Chikpet"},
+    cap:{zh:"Chikpet 老城集市", en:"Chikpet bazaar"},
+    purpose:{zh:"本地集市 Bazaar", en:"Local bazaar"},
+    chip:{zh:"🚗 约 8 公里 · 约 30 分钟", en:"🚗 ~8 km · ~30 min"},
+    remarks:{zh:"• 11:00 AM 逛班加罗尔本地街市\n• 1:00 PM 返程",
+             en:"• 11:00 AM Bangalore local street bazaar\n• Return at 1:00 PM"} },
+
+  { day:4, n:null, time:{zh:"🍛 1:00 PM · 午餐", en:"🍛 1:00 PM · Lunch"}, type:"leisure", img:"lunch.jpg", icon:"🍛",
+    coord:null,
+    route:{zh:"Chikpet 附近用餐", en:"Lunch near Chikpet"},
+    cap:{zh:"午餐", en:"Lunch"},
+    purpose:{zh:"1:00–1:30 PM 用餐", en:"1:00–1:30 PM"},
+    chip:null, remarks:null },
+
+  { day:4, n:11, time:"2:00 PM", type:"leisure", img:"vitm-museum.jpg", icon:"🏛️",
+    coord:[12.9757,77.5910],
+    route:{zh:"Chikpet → Visvesvaraya 科技博物馆", en:"Chikpet → Visvesvaraya Museum"},
+    cap:{zh:"Visvesvaraya 工业科技博物馆", en:"Visvesvaraya Museum"},
+    purpose:{zh:"知名工业与科技博物馆", en:"Famous industrial & technological museum"},
+    chip:{zh:"🚗 约 5 公里 · 约 30 分钟", en:"🚗 ~5 km · ~30 min"},
+    remarks:{zh:"• 2:30 PM 参观科技博物馆\n• 4:00 PM 返程", en:"• 2:30 PM visit the museum\n• Return at 4:00 PM"} },
+
+  { day:4, n:12, time:"4:00 PM", type:"leisure", img:"lalbagh.jpg", icon:"🌳",
+    coord:[12.9507,77.5848],
+    route:{zh:"科技博物馆 → Lal Bagh 植物园", en:"Museum → Lal Bagh Botanical Garden"},
+    cap:{zh:"Lal Bagh 植物园 · 玻璃温室", en:"Lal Bagh · Glass House"},
+    purpose:{zh:"著名植物园（含标志性玻璃温室）", en:"Famous botanical garden (iconic Glass House)"},
+    chip:{zh:"🚗 约 4 公里 · 约 30 分钟", en:"🚗 ~4 km · ~30 min"},
+    remarks:{zh:"• 4:30 PM 到达，5:30 PM 返程", en:"• Reach 4:30 PM, return 5:30 PM"} },
+
+  { day:4, n:13, time:"5:30 PM", type:"leisure", img:"koramangala.jpg", icon:"🍻",
+    coord:[12.9352,77.6245],
+    route:{zh:"Lal Bagh → Koramangala", en:"Lal Bagh → Koramangala"},
+    cap:{zh:"Koramangala 休闲街区", en:"Koramangala"},
+    purpose:{zh:"酒吧小酌 / 休闲街区", en:"Pubs & leisure district"},
+    chip:{zh:"🚗 约 6 公里 · 约 30 分钟", en:"🚗 ~6 km · ~30 min"},
+    remarks:null },
+
+  { day:4, n:null, time:{zh:"🌙 10:00 PM", en:"🌙 10:00 PM"}, type:"biz", img:"itc-windsor.jpg", icon:"🌙",
+    coord:[12.9878,77.5722],
+    route:{zh:"Koramangala → 酒店", en:"Koramangala → Hotel"},
+    cap:{zh:"返回 ITC Windsor", en:"Back to ITC Windsor"},
+    purpose:{zh:"返回酒店休息", en:"Return to hotel / stay"},
+    chip:null, remarks:null },
+];
+
+const MARKERS = [
+  {zh:"ITC Windsor（酒店）", en:"ITC Windsor (Hotel)", coord:[12.9878,77.5722], color:"#e07a2c", dzh:"住宿地点，每日出发与返回点", den:"Accommodation — daily start & end point"},
+  {zh:"HHBL（客户现场）", en:"HHBL (customer site)", coord:[13.05,77.02], color:"#2c8ee0", dzh:"Day 1 拜访：SQE 团队会议", den:"Day 1 visit: SQE team meeting"},
+  {zh:"TESS（客户现场）", en:"TESS (customer site)", coord:[13.35,76.75], color:"#2c8ee0", dzh:"Day 1 拜访：SQE 团队会议", den:"Day 1 visit: SQE team meeting"},
+  {zh:"南迪山 Nandi Hills", en:"Nandi Hills", coord:[13.3702,77.6835], color:"#2ca67a", dzh:"日出观景，自然山景", den:"Sunrise viewpoint"},
+  {zh:"Isha Foundation · Sadhguru Sannidhi", en:"Isha Foundation · Sadhguru Sannidhi", coord:[13.3450,77.7200], color:"#2ca67a",
+   dzh:"Adiyogi 湿婆神像<br>Kavaranahalli, 近南迪山<br>Chikkaballapura 县 · 班加罗尔以北约 65km",
+   den:"Adiyogi Shiva statue<br>Kavaranahalli, near Nandi Hills<br>Chikkaballapura District · ~65 km N of Bengaluru"},
+  {zh:"Phoenix Mall of Asia", en:"Phoenix Mall of Asia", coord:[13.0570,77.6362], color:"#2ca67a", dzh:"大型购物中心", den:"Large shopping mall"},
+  {zh:"Memories of China", en:"Memories of China", coord:[12.9950,77.6100], color:"#2ca67a", dzh:"中餐厅（晚餐）", den:"Chinese restaurant (dinner)"},
+  {zh:"MG Road", en:"MG Road", coord:[12.9757,77.6070], color:"#2ca67a", dzh:"购物、酒吧夜生活", den:"Shopping, pubs & nightlife"},
+  {zh:"ISKCON 神庙", en:"ISKCON Temple", coord:[12.9718,77.5510], color:"#2ca67a", dzh:"印度教寺庙", den:"Hindu temple"},
+  {zh:"Chikpet 本地市场", en:"Chikpet bazaar", coord:[12.9666,77.5771], color:"#2ca67a", dzh:"传统街市", den:"Street market"},
+  {zh:"Visvesvaraya 科技博物馆", en:"Visvesvaraya Museum", coord:[12.9757,77.5910], color:"#2ca67a", dzh:"工业与科技博物馆", den:"Industrial & tech museum"},
+  {zh:"Lal Bagh 植物园", en:"Lal Bagh Garden", coord:[12.9507,77.5848], color:"#2ca67a", dzh:"著名植物园", den:"Botanical garden"},
+  {zh:"Koramangala", en:"Koramangala", coord:[12.9352,77.6245], color:"#2ca67a", dzh:"酒吧、休闲区", den:"Pubs & leisure district"},
+];
+
+let lang = 'zh';
+const t = (v) => (v == null) ? '' : (typeof v === 'string' ? v : (v[lang] || ''));
+
+/* ---------- render cards ---------- */
+function render(){
+  [1,2,3,4].forEach(d => document.getElementById('list-'+d).innerHTML = '');
+  DATA.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'stop' + (s.type === 'leisure' ? ' leisure' : '');
+    el.innerHTML = `
+      <div class="stop-card"${s.coord ? ` data-coord="${s.coord.join(',')}"` : ''}>
+        <div class="thumb">
+          <span class="ph">${s.icon}</span>
+          <img src="img/${s.img}" alt="" loading="lazy"
+               onload="this.style.opacity=1" onerror="this.remove()" style="position:absolute;inset:0;opacity:0;transition:.3s">
+          <div class="cap">${t(s.cap)}</div>
+        </div>
+        <div class="stop-body">
+          <div class="stop-time">${s.n ? `<span class="num-badge">${s.n}</span>` : ''}${t(s.time)}</div>
+          <div class="stop-route">${t(s.route)}</div>
+          <div class="stop-purpose">${t(s.purpose)}</div>
+          ${s.chip ? `<div class="meta-row"><span class="chip">${t(s.chip)}</span></div>` : ''}
+          ${s.remarks ? `<div class="stop-remarks">${t(s.remarks)}</div>` : ''}
+        </div>
+      </div>`;
+    document.getElementById('list-' + s.day).appendChild(el);
+  });
+  bindCards();
+}
+
+/* ---------- map ---------- */
+/* 班加罗尔市中心（Vidhana Soudha / MG Road 一带）—— 永远以它为默认原点 */
+const CITY_CENTER = [12.9716, 77.5946];
+const isMobile = () => window.innerWidth <= 900;
+
+const map = L.map('map', {zoomControl:true, tap:true})
+              .setView(CITY_CENTER, isMobile() ? 11 : 11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap', maxZoom: 18
+}).addTo(map);
+
+const markerMap = {}, markerList = [];
+MARKERS.forEach((p,i) => {
+  const m = L.circleMarker(p.coord, {radius:9, fillColor:p.color, color:"#fff", weight:2, fillOpacity:.95}).addTo(map);
+  m.bindTooltip(String(i+1), {permanent:true, direction:'center', className:'num-label'});
+  m._p = p;
+  m.bindPopup(`<b>${p.zh}</b><br>${p.dzh}`);
+  markerMap[p.coord.join(',')] = m; markerList.push(m);
+});
+
+const st = document.createElement('style');
+st.innerHTML = `.num-label{background:transparent;border:none;box-shadow:none;font-weight:700;color:#fff;font-size:10px;}`;
+document.head.appendChild(st);
+
+/* 回到市中心：手机上视野更紧凑，桌面稍宽 */
+function recenter(animate){
+  map.invalidateSize();
+  const z = isMobile() ? 11 : 11;
+  if(animate) map.flyTo(CITY_CENTER, z, {duration:.5});
+  else map.setView(CITY_CENTER, z, {animate:false});
+}
+
+/* 「⌖ 市中心」按钮 */
+const HomeCtl = L.Control.extend({
+  options:{position:'topleft'},
+  onAdd: function(){
+    const a = L.DomUtil.create('a','leaflet-bar leaflet-control home-btn');
+    a.href = '#'; a.title = '回到班加罗尔市中心';
+    a.innerHTML = '⌖';
+    L.DomEvent.on(a,'click', function(e){ L.DomEvent.stop(e); recenter(true); });
+    return a;
+  }
+});
+map.addControl(new HomeCtl());
+
+function bindCards(){
+  document.querySelectorAll('.stop-card[data-coord]').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      document.querySelectorAll('.stop-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      const m = markerMap[card.dataset.coord];
+      if(m){
+        if(isMobile()) showMap({keepView:true});
+        setTimeout(()=>{
+          map.invalidateSize();
+          map.setView(m.getLatLng(), 13, {animate:false});
+          m.openPopup();
+        }, 80);
+      }
+    });
+  });
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.day-nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.day-nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.day-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('day'+btn.dataset.day).classList.add('active');
+    document.getElementById('content').scrollTop = 0;
+  });
+});
+
+/* ---------- mobile map/list switch ---------- */
+function showMap(opts){
+  const wasHidden = document.body.classList.contains('view-list');
+  document.body.classList.remove('view-list'); document.body.classList.add('view-map');
+  document.getElementById('tab-map').classList.add('on');
+  document.getElementById('tab-list').classList.remove('on');
+  // 地图刚从 display:none 变可见时尺寸是错的，必须先 invalidateSize 再定位
+  setTimeout(()=>{
+    map.invalidateSize();
+    if(wasHidden && !(opts && opts.keepView)) recenter(false);
+  }, 60);
+}
+function showList(){
+  document.body.classList.remove('view-map'); document.body.classList.add('view-list');
+  document.getElementById('tab-list').classList.add('on');
+  document.getElementById('tab-map').classList.remove('on');
+}
+document.getElementById('tab-map').addEventListener('click', showMap);
+document.getElementById('tab-list').addEventListener('click', showList);
+
+/* ---------- language ---------- */
+function setLang(l){
+  lang = l;
+  document.querySelectorAll('[data-zh][data-en]').forEach(el=>{
+    el.textContent = (l === 'zh' ? el.dataset.zh : el.dataset.en);
+  });
+  markerList.forEach(m=>{
+    const p = m._p;
+    m.setPopupContent(l==='zh' ? `<b>${p.zh}</b><br>${p.dzh}` : `<b>${p.en}</b><br>${p.den}`);
+  });
+  document.documentElement.lang = (l==='zh' ? 'zh-CN' : 'en');
+  document.getElementById('btn-zh').classList.toggle('on', l==='zh');
+  document.getElementById('btn-en').classList.toggle('on', l==='en');
+  render();
+}
+document.getElementById('btn-zh').addEventListener('click', ()=>setLang('zh'));
+document.getElementById('btn-en').addEventListener('click', ()=>setLang('en'));
+
+/* ---------- init ---------- */
+render();
+
+/* 首屏：等布局稳定后强制以市中心为原点 */
+window.addEventListener('load', ()=>recenter(false));
+setTimeout(()=>recenter(false), 300);
+
+/* 尺寸/方向变化后重新校正，避免手机地址栏收起时中心偏移 */
+let rzTimer;
+function onViewportChange(){
+  clearTimeout(rzTimer);
+  rzTimer = setTimeout(()=>{
+    if(!isMobile()){ document.body.classList.remove('view-map'); document.body.classList.add('view-list'); }
+    map.invalidateSize();
+  }, 150);
+}
+window.addEventListener('resize', onViewportChange);
+window.addEventListener('orientationchange', ()=>setTimeout(()=>recenter(false), 350));
+</script>
+</body>
+</html>

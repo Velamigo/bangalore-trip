@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
 <title>班加罗尔商务出差之旅 · 2026.08.20-23</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="leaflet.css"/>
+<script src="leaflet.js"></script>
 <style>
   :root{
     --ink:#1e293b; --muted:#64748b;
@@ -445,7 +445,7 @@ const isMobile = () => window.innerWidth <= 900;
 
 const map = L.map('map', {zoomControl:true, tap:true})
               .setView(CITY_CENTER, isMobile() ? 11 : 11);
-L.tileLayer('https://{a-c}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+L.tileLayer('https://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap France', maxZoom: 18
 }).addTo(map);
 
